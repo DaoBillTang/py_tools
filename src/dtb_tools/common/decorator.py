@@ -1,6 +1,7 @@
 import datetime
 import functools
 import sys
+import threading
 from inspect import signature
 
 typeNone = type(None)
@@ -47,7 +48,9 @@ def deprecation(expected_version):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            DeprecationWarning("当前方法：{}预期将在版本{}后删除，请注意".format(func.__name__, expected_version))
+            DeprecationWarning(
+                "当前方法：{}预期将在版本{}后删除，请注意".format(func.__name__, expected_version)
+            )
             f = func(*args, **kwargs)
             return f
 
@@ -174,6 +177,74 @@ def err_handle(*handler):
                         else:
                             return
                 raise ex
+
+        return wrapper
+
+    return decorator
+
+
+def with_cache(
+        cache: dict,
+        key,
+        with_log: callable = None,
+        by_get: bool = True,
+        by_save: bool = True,
+):
+    """
+        get something with cache
+    :param cache: dict
+    :param key:
+    :param with_log : with log
+    :param by_get
+    :param by_save
+    :return:
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if by_get:
+                want = cache.get(key, None)
+            else:
+                want = None
+
+            if want:
+                if with_log:
+                    with_log("use cache data by key {}".format(key))
+
+                return want
+
+            f = func(*args, **kwargs)
+
+            if by_save:
+                if with_log:
+                    with_log("save cache data by key {}".format(key))
+                cache[key] = f
+
+            return f
+
+        return wrapper
+
+    return decorator
+
+
+def run_background(with_log: callable = None):
+    """
+        run func in background
+    :param with_thead:
+    :return:
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            t = threading.Thread(target=func, args=args, kwargs=kwargs)
+
+            if with_log:
+                with_log("run func {} thread {} ".format(func.__name__, t.name))
+            t.start()
+            if with_log:
+                with_log("end func {} in thread {}".format(func.__name__, t.name))
 
         return wrapper
 
