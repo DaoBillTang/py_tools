@@ -6,7 +6,7 @@ from src.dtb_tools.common.decorator import (
     run_safe,
     err_handle,
     with_cache,
-    run_background
+    run_background,
 )
 
 

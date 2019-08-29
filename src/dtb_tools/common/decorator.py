@@ -184,11 +184,11 @@ def err_handle(*handler):
 
 
 def with_cache(
-        cache: dict,
-        key,
-        with_log: callable = None,
-        by_get: bool = True,
-        by_save: bool = True,
+    cache: dict,
+    key,
+    with_log: callable = None,
+    by_get: bool = True,
+    by_save: bool = True,
 ):
     """
         get something with cache
