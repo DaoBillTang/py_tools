@@ -27,8 +27,8 @@ def setup():
 
     setup(
         name="dtb_tools",
-        version="0.0.1",
-        keywords=("pytools"),
+        version="0.0.4",
+        keywords=("pytools container"),
         description="python tools",
         long_description="python tools",
         license="MIT Licence",
@@ -36,7 +36,7 @@ def setup():
         author="dtb",
         author_email="1750352866@qq.com",
         package_dir={"": "src"},
-        packages=find_packages(),
+        packages=find_packages(where="src"),
         include_package_data=True,
         platforms="any",
         install_requires=get_requires_list("requirements.txt")

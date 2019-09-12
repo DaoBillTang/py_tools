@@ -4,106 +4,114 @@ import sys
 import threading
 from inspect import signature
 
+from src.dtb_tools.common.err import ParamsTypeErr, ReturnTypeErr
+
 typeNone = type(None)
 
 
-def log_time(log_name="unknow", with_log=None, to_log: bool = False):
+class log_time:
     """
-    这个是 方法的日志，如果打上如此的装饰器，可以添加参数 debug/Debug,即使本身并不需要
-    :param log_name: log title
-    :param with_log: log func
-    :param to_log:  show log or not
-    :return:
+         这个是 方法的日志，如果打上如此的装饰器，可以添加参数 debug/Debug,即使本身并不需要
+         :param log_name: log title
+         :param with_log: log func
+         :param to_log:  show log or not
+         :return:
     """
+    __slots__ = ["log_name", "with_log", "show"]
 
-    def decorator(func):
+    def __init__(self, log_name="unknow", with_log=None, to_log: bool = True):
+        self.log_name = log_name
+        self.with_log = with_log
+        self.show = True if with_log is not None and to_log else False
+
+    def __call__(self, func):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            if with_log is not None and to_log:
-                show = True
-            else:
-                show = False
-
-            if show:
+        def decorator(*args, **kwargs):
+            if self.show:
                 st = datetime.datetime.now()
-                with_log("{}====start...".format(log_name))
+                self.with_log("{}:start...".format(self.log_name))
             f = func(*args, **kwargs)
-            if show:
+            if self.show:
                 et = datetime.datetime.now()
-                with_log("{0}end……time consuming：{1}".format(log_name, et - st))
+                self.with_log("{0}:end……time consuming：{1}".format(self.log_name, et - st))
             return f
 
-        return wrapper
-
-    return decorator
+        return decorator
 
 
-def deprecation(expected_version):
-    """
-        用于标识 方法过时；
-        :param expected_version 预期删除的版本
-    :return:
-    """
+class deprecation:
+    __slots__ = ["ev"]
 
-    def decorator(func):
+    def __init__(self, expected_version):
+        self.ev = expected_version
+
+    def __call__(self, func):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def decorator(*args, **kwargs):
             DeprecationWarning(
-                "当前方法：{}预期将在版本{}后删除，请注意".format(func.__name__, expected_version)
+                "当前方法：{}预期将在版本{}后删除，请注意".format(func.__name__, self.ev)
             )
             f = func(*args, **kwargs)
             return f
 
-        return wrapper
-
-    return decorator
+        return decorator
 
 
-def check_params_type(func):
+class check_params_type:
     """
-        装饰器：
-        用于对于 进行了 函数注释的方法进行 参数类型 以及 返回值检验；
-        注意：
-            对于**args 和*kwargs 而言， 并没有限制 其下的 参数 的类型；
-                    所以需要 限制的话，请 前移为 普通参数，或有默认值的参数
-        注意：
-            对于 有默认参数 None 的值，不填写 参数并不会出发判定机制；
-            对于 可以为None 的值，添加type(None),或者本类里面的 typeNone  可以通过参数验证
-        ：create by: dtb
-        :except TypeError:
-            对于 signature (参数签名) 进行 参数绑定 时， 以及参数类型 判断时 都可能返回 TypeError
-    :return:
+            装饰器：
+            用于对于 进行了 函数注释的方法进行 参数类型 以及 返回值检验；
+            注意：
+                对于**args 和*kwargs 而言， 并没有限制 其下的 参数 的类型；
+                        所以需要 限制的话，请 前移为 普通参数，或有默认值的参数
+            注意：
+                对于 有默认参数 None 的值，不填写 参数并不会出发判定机制；
+                对于 可以为None 的值，添加type(None),或者本类里面的 typeNone  可以通过参数验证
+            ：create by: dtb
+            :except TypeError:
+                对于 signature (参数签名) 进行 参数绑定 时， 以及参数类型 判断时 都可能返回 TypeError
+        :return:
     """
-    rules = func.__annotations__  # 获取参数与返回值的注解
-    sig = signature(func)
+    __slots__ = ["kwdict"]
 
-    def wrapper(*args, **kwargs):
-        bound_values = sig.bind(*args, **kwargs)
-        for name, value in bound_values.arguments.items():
-            if name in rules and not isinstance(value, rules[name]):
-                raise TypeError(
-                    "func {} should Argument {} must be {};but  {}".format(
-                        func.__name__, name, rules[name], type(value)
-                    )
+    def __init__(self, kwdict=None):
+        self.kwdict = kwdict
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def decorator(*args, **kwargs):
+            rules = func.__annotations__  # 获取参数与返回值的注解
+            sig = signature(func)
+            bound_values = sig.bind(*args, **kwargs)
+
+            if self.kwdict is not None:
+                rules.update(self.kwdict)
+
+            for name, value in bound_values.arguments.items():
+                if name in rules and not isinstance(value, rules[name]):
+                    self.show_err(func.__name__, name, rules[name], type(value))
+
+            for name, value in kwargs.items():  # 检查传入的关键字参数类型
+                if name in rules and not isinstance(value, rules[name]):
+                    self.show_err(func.__name__, name, rules[name], type(value))
+
+            back = func(*args, **kwargs)
+
+            if "return" in rules and not isinstance(back, rules["return"]):
+                # 检查返回值类型
+                raise ReturnTypeErr(
+                    "func {}  want return %s , but %s" % (rules["return"], type(back))
                 )
-        for name, value in kwargs.items():  # 检查传入的关键字参数类型
-            if name in rules and not isinstance(value, rules[name]):
-                raise TypeError(
-                    "func {} should Argument {} must be {};but  {}".format(
-                        func.__name__, name, rules[name], type(value)
-                    )
-                )
+            return back
 
-        back = func(*args, **kwargs)
+        return decorator
 
-        if "return" in rules and not isinstance(back, rules["return"]):
-            # 检查返回值类型
-            raise RuntimeError(
-                "func {}  want return %s , but %s" % (rules["return"], type(back))
+    def show_err(self, func_name, name, value, typec):
+        raise ParamsTypeErr(
+            "func [{}] should Argument {} must be {};but  {}".format(
+                func_name, name, value, typec
             )
-        return back
-
-    return wrapper
+        )
 
 
 def applicationInstance(bind: str, with_log_success=None, with_log_err=None):
@@ -184,11 +192,11 @@ def err_handle(*handler):
 
 
 def with_cache(
-    cache: dict,
-    key,
-    with_log: callable = None,
-    by_get: bool = True,
-    by_save: bool = True,
+        cache: dict,
+        key,
+        with_log: callable = None,
+        by_get: bool = True,
+        by_save: bool = True,
 ):
     """
         get something with cache

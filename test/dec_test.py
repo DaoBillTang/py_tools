@@ -83,4 +83,21 @@ def thread_test():
     test("c")
 
 
-thread_test()
+# thread_test()
+
+def type_handler(err, func, x, y):
+    print("func type err")
+    return "err"
+
+
+def handler_and_params():
+    @err_handle((TypeError, type_handler))
+    @check_params_type
+    def test(x: int, y: str):
+        return "success"
+
+    a = test(5, 6)
+    print(a)
+
+
+handler_and_params()
