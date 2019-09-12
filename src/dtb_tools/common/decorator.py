@@ -4,7 +4,7 @@ import sys
 import threading
 from inspect import signature
 
-from src.dtb_tools.common.err import ParamsTypeErr, ReturnTypeErr
+from dtb_tools.common.err import ParamsTypeErr, ReturnTypeErr
 
 typeNone = type(None)
 
@@ -224,7 +224,7 @@ def with_cache(
 
             f = func(*args, **kwargs)
 
-            if by_save:
+            if by_save and f is not None:
                 if with_log:
                     with_log("save cache data by key {}".format(key))
                 cache[key] = f

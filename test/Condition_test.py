@@ -1,8 +1,9 @@
 import random
 import threading
+from time import monotonic
 from time import sleep
 
-from src.dtb_tools.common.decorator import run_background
+from dtb_tools.common.decorator import run_background
 
 
 class BlockValue:
@@ -13,10 +14,20 @@ class BlockValue:
         self.set_lock = threading.Condition(self.mutex)
         self.value = None
 
-    def get(self):
+    def get(self, timeout=None):
         with self.not_empty:
-            while self.value is None:
-                self.not_empty.wait()
+            if timeout is None:
+                while self.value is None:
+                    self.not_empty.wait()
+            elif timeout < 0:
+                raise ValueError("'timeout' must be a non-negative number")
+            else:
+                endtime = monotonic() + timeout
+                while self.value is None:
+                    remaining = endtime - monotonic()
+                    if remaining <= 0.0:
+                        raise RuntimeError("time out")
+                    self.not_empty.wait(remaining)
             item = self.value
             self.value = None
             return item
@@ -37,11 +48,11 @@ def put():
         a.put(i)
         print("put=={}", i)
         i += 1
-        sleep(random.randint(1, 5))
+        sleep(random.randint(1, 10))
 
 
-put()
-
+# put()
+a.put(1)
 while True:
-    b = a.get()
+    b = a.get(timeout=10)
     print("get", b)

@@ -1,4 +1,7 @@
 import threading
+from time import monotonic
+
+from dtb_tools.common.err import TimeOutErr
 
 
 class BlockValue:
@@ -12,10 +15,20 @@ class BlockValue:
         self.set_lock = threading.Condition(self.mutex)
         self.value = None
 
-    def get(self):
+    def get(self, timeout=None):
         with self.not_empty:
-            while self.value is None:
-                self.not_empty.wait()
+            if timeout is None:
+                while self.value is None:
+                    self.not_empty.wait()
+            elif timeout < 0:
+                raise ValueError("'timeout' must be a non-negative number")
+            else:
+                endtime = monotonic() + timeout
+                while self.value is None:
+                    remaining = endtime - monotonic()
+                    if remaining <= 0.0:
+                        raise TimeOutErr("time out")
+                    self.not_empty.wait(remaining)
             item = self.value
             self.value = None
             return item
