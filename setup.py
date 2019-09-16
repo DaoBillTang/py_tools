@@ -27,7 +27,7 @@ def setup():
 
     setup(
         name="dtb_tools",
-        version="0.0.7",
+        version="0.0.8",
         keywords=("pytools container"),
         description="python tools",
         long_description="python tools",
