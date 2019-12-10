@@ -1,3 +1,6 @@
 *.temp
 /venv
 /.idea
+/build
+/dist
+/src/dtb_tools.egg-info
