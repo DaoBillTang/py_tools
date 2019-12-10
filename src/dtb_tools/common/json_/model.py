@@ -1,5 +1,7 @@
 import json
 
+__all__ = ["JsonBean", "JsonBeanEncoder"]
+
 
 class JsonBean:
     """

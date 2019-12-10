@@ -6,6 +6,8 @@ from signal import SIGTERM
 
 __metaclass__ = type
 
+__all__ = ['Daemon']
+
 
 class Daemon:
     def __init__(
@@ -251,21 +253,9 @@ class Daemon:
         func(*args, **kwargs)
 
 
-"""
-
-def start():
-    pid_path = os.path.join(pc.work_path, "pid")
-
-    if os.access(pid_path, os.F_OK) is False:
-        os.mkdir(pid_path)
-
-    daemon = BriefDaemon(os.path.join(pid_path, "{0}.pid".format(pc.__model_name__)))
-
+def run_daemon(daemon: Daemon, with_log_err=print, with_log_info=print):
     if len(sys.argv) >= 2:
         if "start" == sys.argv[1]:
-            daemon.setApplicationName(pc.__model_name__)
-            if pc.debug:
-                daemon.stdout = os.path.join(pc.project_dir, "test.log")
             daemon.start()
         elif "stop" == sys.argv[1]:
             daemon.stop()
@@ -274,13 +264,12 @@ def start():
         elif "status" == sys.argv[1]:
             daemon.status()
         else:
-            log.e("unknown command")
+            with_log_err("unknown command")
             sys.exit(2)
         sys.exit(0)
     else:
-        log.i(
-            "当前启动为普通启动,如果需要以后台进程的形式启动请使用: python -m %s start|stop|restart|status "
-            "\n或者 ppsq-da-brief start|stop|restart|status" % sys.argv[0]
+        with_log_info(
+            "当前启动为普通启动,如果需要以后台进程的形式启动请使用: python -m {0} start|stop|restart|status "
+            "\n或者 {0} start|stop|restart|status".format(sys.argv[0])
         )
-        start_score()
-"""
+        daemon.run()
