@@ -11,7 +11,7 @@ def s():
     print("s")
 
 
-@Repeatedly(count=-1, do_success=s, do_err=f)
+@Repeatedly(count=-1, do_success=s, do_err=f, with_log=print)
 def f(a, b, *args, **kwargs):
     c = np.random.randint(a, high=b)
 
@@ -21,13 +21,4 @@ def f(a, b, *args, **kwargs):
         raise ValueError(c)
 
 
-f(4, 15)
-
-from datetime import datetime
-
-st = datetime.now()
-et = datetime.now()
-
-# s = "".join(["e", et - st])
-# print(s)
-print((et-st).__str__())
+f(1, 12)

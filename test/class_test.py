@@ -1,5 +1,5 @@
 from src.dtb_tools.common.decorator import (
-    check_params_type,
+    CheckParamsType,
     Deprecation,
     err_handle,
     ErrHandler,
@@ -20,7 +20,7 @@ class h1(ErrHandler):
 
 
 @err_handle((TypeError, handler, {"tuple": "tup"}), h1(TypeError, type="type"))
-@check_params_type({"c": str})
+@CheckParamsType({"c": str})
 def test_check_params_type(a: int, b: str, **kwargs):
     print(a, b)
 

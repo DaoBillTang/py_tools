@@ -2,8 +2,8 @@ import logging
 
 from src.dtb_tools.common.decorator import (
     LogTime,
-    check_params_type,
-    run_safe,
+    CheckParamsType,
+    RunSafe,
     err_handle,
     with_cache,
     run_background,
@@ -11,13 +11,13 @@ from src.dtb_tools.common.decorator import (
 
 
 @LogTime(with_log=logging.error, to_log=True)
-@check_params_type
+@CheckParamsType()
 def test(x: int, y: str, z):
     logging.error("end")
 
 
 @LogTime(with_log=logging.error, to_log=True)
-@run_safe
+@RunSafe()
 def test_safe():
     logging.debug("test_safe")
     raise
@@ -93,7 +93,7 @@ def type_handler(err, func, x, y):
 
 def handler_and_params():
     @err_handle((TypeError, type_handler))
-    @check_params_type
+    @CheckParamsType()
     def test(x: int, y: str):
         return "success"
 

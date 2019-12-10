@@ -73,7 +73,7 @@ class Deprecation(LogDecoratorUnit):
         return decorator
 
 
-class check_params_type:
+class CheckParamsType:
     """
             装饰器：
             用于对于 进行了 函数注释的方法进行 参数类型 以及 返回值检验；
@@ -131,35 +131,29 @@ class check_params_type:
         )
 
 
-def ApplicationInstance(bind: str, with_log_success=None, with_log_err=None):
-    """
-        通过监听特定端口,确定没有多个实例运行
-    :param bind: 需要绑定监听的接口
-    :param with_log_success
-    :param with_log_err
-    :return:
-    """
+class ApplicationInstance:
 
-    def decorator(func):
+    def __init__(self, bind: str, with_log_success=None, with_log_err=None):
+        self.bind = bind
+        self.with_log_success = with_log_success
+        self.with_log_err = with_log_err
+
+    def __call__(self, func):
         @functools.wraps(func)
-        def fun(*args, **kwargs):
-            import socket
-
+        def decorator(*args, **kwargs):
             try:
-                global s
+                import socket
                 s = socket.socket()
                 host = socket.gethostname()
-                s.bind((host, bind))
-                if with_log_success:
-                    with_log_success("application instance start")
+                s.bind((host, self.bind))
+                if self.with_log_success:
+                    self.with_log_success("application instance start")
                 return func(*args, **kwargs)
             except:
-                with_log_err("start application err,can not bind {}".format(bind))
+                self.with_log_err("start application err,can not bind {}".format(self.bind))
                 sys.exit(0)
 
-        return fun
-
-    return decorator
+        return decorator
 
 
 class RunSafe(LogDecoratorUnit):
@@ -177,23 +171,6 @@ class RunSafe(LogDecoratorUnit):
                 self.show_log(ex)
 
         return decorator
-
-
-def run_safe(func):
-    """
-        func run with safe
-    :param func:
-    :return:
-    """
-
-    def wrapper(*args, **kwargs):
-        try:
-            f = func(*args, **kwargs)
-            return f
-        except:
-            pass
-
-    return wrapper
 
 
 class ErrHandler:
@@ -332,12 +309,13 @@ def run_background(with_log: callable = None, pool: ThreadPoolExecutor = None):
     return decorator
 
 
-class Repeatedly:
+class Repeatedly(LogDecoratorUnit):
     """
         进行多次的尝试 ，如果 超过次数，抛出异常
     """
 
     def __init__(self, count=3, do_err: callable = None, do_success: callable = None, with_log: callable = None):
+        super().__init__(log_name="Repeatedly", with_log=with_log)
         self.count = count
         self.do_success = do_success
         self.do_err = do_err
@@ -353,6 +331,7 @@ class Repeatedly:
             c = 0
             while self.has_next(c):
                 try:
+                    self.show_log("进行第{}次尝试".format(c + 1))
                     f = func(*args, **kwargs)
                     if self.do_success:
                         self.do_success()
