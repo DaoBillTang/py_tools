@@ -2,12 +2,11 @@ import datetime
 import functools
 import timeit
 
-from src.dtb_tools.common.decorator import log_time
+from src.dtb_tools.common.decorator import LogTime
 import numpy as np
 
 
 class d:
-
     def __init__(self, func):
         self.f = func
 
@@ -20,7 +19,6 @@ class d:
 
 
 class c_d:
-
     def __init__(self, log_name="unknow", with_log=None, to_log: bool = False):
         self.log_name = log_name
         self.with_log = with_log
@@ -44,7 +42,9 @@ class c_d:
             f = func(*args, **kwargs)
             if self.show:
                 et = datetime.datetime.now()
-                self.with_log("{0}:end……time consuming：{1}".format(self.log_name, et - st))
+                self.with_log(
+                    "{0}:end……time consuming：{1}".format(self.log_name, et - st)
+                )
             return f
 
         return decorator
@@ -76,7 +76,9 @@ class c_d_2:
             f = func(*args, **kwargs)
             if self.show:
                 et = datetime.datetime.now()
-                self.with_log("{0}:end……time consuming：{1}".format(self.log_name, et - st))
+                self.with_log(
+                    "{0}:end……time consuming：{1}".format(self.log_name, et - st)
+                )
             return f
 
         return decorator
@@ -87,7 +89,7 @@ def test_(a, b):
     print(a, b)
 
 
-@log_time(with_log=print, to_log=True)
+@LogTime(with_log=print, to_log=True)
 def test_2(a, b):
     print(a, b)
 
@@ -106,6 +108,7 @@ def p(t):
     s = t.repeat(10, 10000)
     print(s)
     print(np.mean(s))
+
 
 """
 repeat 5 : 

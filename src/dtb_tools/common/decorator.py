@@ -2,6 +2,7 @@ import datetime
 import functools
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from inspect import signature
 
 from dtb_tools.common.err import ParamsTypeErr, ReturnTypeErr
@@ -9,7 +10,23 @@ from dtb_tools.common.err import ParamsTypeErr, ReturnTypeErr
 typeNone = type(None)
 
 
-class log_time:
+class LogDecoratorUnit:
+    """
+        最 基础的 展示log 的
+    """
+
+    def __init__(self, log_name=None, with_log: callable = None, to_log: bool = True):
+        self.log_name = log_name
+        self.with_log = with_log
+        self.show = True if with_log is not None and to_log else False
+
+    def show_log(self, *text):
+        if self.show:
+            t = "{}:{}".format(self.log_name, "".join(text))
+            self.with_log(t)
+
+
+class LogTime(LogDecoratorUnit):
     """
          这个是 方法的日志，如果打上如此的装饰器，可以添加参数 debug/Debug,即使本身并不需要
          :param log_name: log title
@@ -17,40 +34,39 @@ class log_time:
          :param to_log:  show log or not
          :return:
     """
-    __slots__ = ["log_name", "with_log", "show"]
 
-    def __init__(self, log_name="unknow", with_log=None, to_log: bool = True):
-        self.log_name = log_name
-        self.with_log = with_log
-        self.show = True if with_log is not None and to_log else False
+    __slots__ = ["log_name", "with_log", "show", "log_return", "log_err"]
+
+    def __init__(self, log_name="unknow", with_log=None, to_log: bool = True, log_return=False):
+        super().__init__(log_name, with_log, to_log)
+        self.log_return = log_return
 
     def __call__(self, func):
         @functools.wraps(func)
         def decorator(*args, **kwargs):
-            if self.show:
-                st = datetime.datetime.now()
-                self.with_log("{}:start...".format(self.log_name))
+            st = datetime.datetime.now()
+            self.show_log("start...")
             f = func(*args, **kwargs)
-            if self.show:
-                et = datetime.datetime.now()
-                self.with_log("{0}:end……time consuming：{1}".format(self.log_name, et - st))
+            self.show_log("end……time consuming", (datetime.datetime.now() - st).__str__())
+
+            if self.log_return:
+                self.show_log("return->", f)
             return f
 
         return decorator
 
 
-class deprecation:
+class Deprecation(LogDecoratorUnit):
     __slots__ = ["ev"]
 
     def __init__(self, expected_version):
+        super().__init__("deprecationWarning:", DeprecationWarning)
         self.ev = expected_version
 
     def __call__(self, func):
         @functools.wraps(func)
         def decorator(*args, **kwargs):
-            DeprecationWarning(
-                "当前方法：{}预期将在版本{}后删除，请注意".format(func.__name__, self.ev)
-            )
+            self.show_log("当前方法：{}预期将在版本{}后删除，请注意".format(func.__name__, self.ev))
             f = func(*args, **kwargs)
             return f
 
@@ -72,6 +88,7 @@ class check_params_type:
                 对于 signature (参数签名) 进行 参数绑定 时， 以及参数类型 判断时 都可能返回 TypeError
         :return:
     """
+
     __slots__ = ["kwdict"]
 
     def __init__(self, kwdict=None):
@@ -114,7 +131,7 @@ class check_params_type:
         )
 
 
-def applicationInstance(bind: str, with_log_success=None, with_log_err=None):
+def ApplicationInstance(bind: str, with_log_success=None, with_log_err=None):
     """
         通过监听特定端口,确定没有多个实例运行
     :param bind: 需要绑定监听的接口
@@ -145,6 +162,23 @@ def applicationInstance(bind: str, with_log_success=None, with_log_err=None):
     return decorator
 
 
+class RunSafe(LogDecoratorUnit):
+
+    def __init__(self, log_name="run safe has err", with_log=None):
+        super().__init__(log_name=log_name, with_log=with_log)
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def decorator(*args, **kwargs):
+            try:
+                f = func(*args, **kwargs)
+                return f
+            except Exception as ex:
+                self.show_log(ex)
+
+        return decorator
+
+
 def run_safe(func):
     """
         func run with safe
@@ -162,11 +196,33 @@ def run_safe(func):
     return wrapper
 
 
-def err_handle(*handler):
+class ErrHandler:
+    """
+        重写 handler 方法
     """
 
+    def __init__(self, ex, *args, **kwargs):
+        self.ex = ex
+        self.args = args
+        self.kwargs = kwargs
+
+    def handler(self, ex, func, *args, **kwargs):
+        raise
+
+    def __call__(self, ex, func, *args, **kwargs):
+        f = self.handler(ex, func, *args, **kwargs)
+        return f
+
+
+def err_handle(*handler):
+    """
+      对于 err  进行处理：
+            是一个允许三个参数的 tuple 或者 ErrHandler 的子类,
+                第一个参数是 exception
+                第二个是 callable
+                第三个是
     :param handler: a list with tuple;
-        (Exception,an  function , like func(err);u can do something when exception)
+        (Exception,an  function , like func(err);u can do something when exception,dict {err handle kwargs})
     :return:
     """
 
@@ -178,12 +234,25 @@ def err_handle(*handler):
                 return f
             except Exception as ex:
                 for i in handler:
-                    if isinstance(ex, i[0]):
-                        if len(i) == 2:
-                            f = i[1](ex, func, *args, **kwargs)
-                            return f
-                        else:
-                            return
+                    if isinstance(i, tuple):
+                        err = i[0]
+                        if isinstance(ex, err):
+                            if len(i) == 2:
+                                f = i[1](ex, func, *args, **kwargs)
+                                return f
+                            elif len(i) == 3:
+                                f = i[1](
+                                    ex, func, err_handle_kwargs=i[2], *args, **kwargs
+                                )
+                                return f
+                            else:
+                                return
+                    elif isinstance(i, ErrHandler) and isinstance(ex, i.ex):
+                        return i(ex, func, *args, **kwargs)
+
+                    else:
+                        continue
+
                 raise ex
 
         return wrapper
@@ -192,11 +261,11 @@ def err_handle(*handler):
 
 
 def with_cache(
-        cache: dict,
-        key,
-        with_log: callable = None,
-        by_get: bool = True,
-        by_save: bool = True,
+    cache: dict,
+    key,
+    with_log: callable = None,
+    by_get: bool = True,
+    by_save: bool = True,
 ):
     """
         get something with cache
@@ -236,24 +305,77 @@ def with_cache(
     return decorator
 
 
-def run_background(with_log: callable = None):
+def run_background(with_log: callable = None, pool: ThreadPoolExecutor = None):
     """
         run func in background
-    :param with_thead:
+            可以选择指定线程池进行操作
+    :param with_log:
+    :param pool: 线程池 ThreadPoolExecutor
     :return:
     """
 
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            t = threading.Thread(target=func, args=args, kwargs=kwargs)
-
-            if with_log:
-                with_log("run func {} thread {} ".format(func.__name__, t.name))
-            t.start()
-            if with_log:
-                with_log("end func {} in thread {}".format(func.__name__, t.name))
+            if pool:
+                pool.submit(func, *args, **kwargs)
+                if with_log:
+                    with_log("func {} in pool {}".format(func.__name__, pool))
+            else:
+                t = threading.Thread(target=func, args=args, kwargs=kwargs)
+                t.start()
+                if with_log:
+                    with_log("func {} in thread {}".format(func.__name__, t.name))
 
         return wrapper
 
     return decorator
+
+
+class Repeatedly:
+    """
+        进行多次的尝试 ，如果 超过次数，抛出异常
+    """
+
+    def __init__(self, count=3, do_err: callable = None, do_success: callable = None, with_log: callable = None):
+        self.count = count
+        self.do_success = do_success
+        self.do_err = do_err
+
+    def has_next(self, c):
+        if self.count <= 0:
+            return True
+        return c < self.count
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def decorator(*args, **kwargs):
+            c = 0
+            while self.has_next(c):
+                try:
+                    f = func(*args, **kwargs)
+                    if self.do_success:
+                        self.do_success()
+                    return f
+                except Exception as ex:
+                    c += 1
+                    if not self.has_next(c):
+                        if self.do_err:
+                            self.do_err()
+                        raise ex
+                    else:
+                        pass
+
+        return decorator
+
+
+class RunLimitTime:
+    """
+        运行 func 进行时间的 限制
+    """
+
+    def __init__(self):
+        pass
+
+    def __call__(self, func):
+        pass

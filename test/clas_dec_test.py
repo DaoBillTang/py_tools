@@ -9,11 +9,13 @@ class tracer:
 
     def __call__(self, *args, **kwargs):  # 能用于函数装饰器
         self.calls += 1
-        print('tracer call %s to %s' % (self.calls, self.func.__name__), ',args:', args)
+        print("tracer call %s to %s" % (self.calls, self.func.__name__), ",args:", args)
         return self.func(*args, **kwargs)
 
-    def __get__(self, instance, owner):  # __get__ 获取2个实例对象,1个self(描述符对象) , instance(被装饰的对象)
-        print('__get__')
+    def __get__(
+        self, instance, owner
+    ):  # __get__ 获取2个实例对象,1个self(描述符对象) , instance(被装饰的对象)
+        print("__get__")
         return wrapper(self, instance)  # 返回一个临时对象
 
 
@@ -28,7 +30,7 @@ class wrapper:
 
 
 class Person:
-    def __init__(self, name='person'):
+    def __init__(self, name="person"):
         self.name = name
 
     @tracer

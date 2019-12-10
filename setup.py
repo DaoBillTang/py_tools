@@ -25,9 +25,10 @@ def get_requires_list(*file_paths):
 def setup():
     from setuptools import setup, find_packages
 
+    print("start")
     setup(
         name="dtb_tools",
-        version="0.0.8",
+        version="0.0.10",
         keywords=("pytools container"),
         description="python tools",
         long_description="python tools",
@@ -39,14 +40,18 @@ def setup():
         packages=find_packages(where="src"),
         include_package_data=True,
         platforms="any",
-        install_requires=get_requires_list("requirements.txt")
+        install_requires=get_requires_list("requirements.txt"),
     )
 
+
+"""
+twine upload dist/dtb_tools-0.0.7-py3-none-any.whl 
+"""
 
 if __name__ == "__main__":
     """
     python setup.py installer -dev
     or 
-    python setup.py setup -dev bdist_wheel 
+    python setup.py bdist_wheel 
     """
     setup()
