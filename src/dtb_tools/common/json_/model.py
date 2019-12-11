@@ -54,4 +54,4 @@ class JsonBeanEncoder(json.JSONEncoder):
         elif isinstance(obj, set):
             return list(obj)
         else:
-            return json.JSONEncoder.default(self, obj)
+            return super().default(obj)
