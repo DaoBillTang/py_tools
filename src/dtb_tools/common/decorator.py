@@ -21,8 +21,9 @@ class LogDecoratorUnit:
         self.show = True if with_log is not None and to_log else False
 
     def show_log(self, *text):
+        ls = [i.__str__() for i in text]
         if self.show:
-            t = "{}:{}".format(self.log_name, "".join(text))
+            t = "{}:{}".format(self.log_name, "".join(ls))
             self.with_log(t)
 
 
