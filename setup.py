@@ -28,7 +28,7 @@ def setup():
     print("start")
     setup(
         name="dtb_tools",
-        version="0.0.13",
+        version="0.0.14",
         keywords=("pytools container"),
         description="python tools",
         long_description="python tools",
@@ -42,6 +42,8 @@ def setup():
         platforms="any",
         install_requires=get_requires_list("requirements.txt"),
     )
+    import shutil
+    shutil.rmtree(os.path.abspath("build"))
 
 
 """

@@ -1,4 +1,5 @@
 import threading
+from datetime import timedelta, datetime
 from time import monotonic
 
 from dtb_tools.common.err import TimeOutErr
@@ -15,6 +16,7 @@ class BlockValue:
         self.set_lock = threading.Condition(self.mutex)
         self.value = init_value
         self.num = 0
+        self.time = None
 
     def get(self, timeout=None):
         with self.not_empty:
@@ -47,7 +49,20 @@ class BlockValue:
                 self.value = item
                 self.not_empty.notify()
 
-    def put(self, item):
+    def put(self, item, delta: timedelta = None):
+        """
+
+        :param item:
+        :param delta:
+            再次写入时间，默认为None ，不做限制;
+        :return:
+        """
         with self.set_lock:
+            if delta:
+                now = datetime.now()
+                if self.time and (now - self.time) <= delta:
+                    self.not_empty.notify()
+                    return
+                self.time = now
             self.value = item
             self.not_empty.notify()
