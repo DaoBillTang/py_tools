@@ -6,7 +6,7 @@ from signal import SIGTERM
 
 __metaclass__ = type
 
-__all__ = ['Daemon']
+__all__ = ["Daemon"]
 
 
 class Daemon:

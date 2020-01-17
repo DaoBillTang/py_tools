@@ -2,6 +2,7 @@ import datetime
 import functools
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from inspect import signature
 
@@ -38,7 +39,9 @@ class LogTime(LogDecoratorUnit):
 
     __slots__ = ["log_name", "with_log", "show", "log_return", "log_err"]
 
-    def __init__(self, log_name="unknow", with_log=None, to_log: bool = True, log_return=False):
+    def __init__(
+        self, log_name="unknow", with_log=None, to_log: bool = True, log_return=False
+    ):
         super().__init__(log_name, with_log, to_log)
         self.log_return = log_return
 
@@ -48,7 +51,9 @@ class LogTime(LogDecoratorUnit):
             st = datetime.datetime.now()
             self.show_log("start...")
             f = func(*args, **kwargs)
-            self.show_log("end……time consuming", (datetime.datetime.now() - st).__str__())
+            self.show_log(
+                "end……time consuming", (datetime.datetime.now() - st).__str__()
+            )
 
             if self.log_return:
                 self.show_log("return->", f)
@@ -133,7 +138,6 @@ class CheckParamsType:
 
 
 class ApplicationInstance:
-
     def __init__(self, bind: str, with_log_success=None, with_log_err=None):
         self.bind = bind
         self.with_log_success = with_log_success
@@ -144,6 +148,7 @@ class ApplicationInstance:
         def decorator(*args, **kwargs):
             try:
                 import socket
+
                 s = socket.socket()
                 host = socket.gethostname()
                 s.bind((host, self.bind))
@@ -151,14 +156,15 @@ class ApplicationInstance:
                     self.with_log_success("application instance start")
                 return func(*args, **kwargs)
             except:
-                self.with_log_err("start application err,can not bind {}".format(self.bind))
+                self.with_log_err(
+                    "start application err,can not bind {}".format(self.bind)
+                )
                 sys.exit(0)
 
         return decorator
 
 
 class RunSafe(LogDecoratorUnit):
-
     def __init__(self, log_name="run safe has err", with_log=None):
         super().__init__(log_name=log_name, with_log=with_log)
 
@@ -315,7 +321,13 @@ class Repeatedly(LogDecoratorUnit):
         进行多次的尝试 ，如果 超过次数，抛出异常
     """
 
-    def __init__(self, count=3, do_err: callable = None, do_success: callable = None, with_log: callable = None):
+    def __init__(
+        self,
+        count=3,
+        do_err: callable = None,
+        do_success: callable = None,
+        with_log: callable = None,
+    ):
         super().__init__(log_name="Repeatedly", with_log=with_log)
         self.count = count
         self.do_success = do_success
@@ -359,3 +371,63 @@ class RunLimitTime:
 
     def __call__(self, func):
         pass
+
+
+# 操作符：
+
+
+class IntervalInfo:
+    __slots__ = ["time", "value", "interval", "name"]
+
+    def __init__(self, name: str = None, value=None, interval: int = 1):
+        """
+
+        :param name: 需要对比的参数的名称，如果为 None ,将去传入的第一个参数
+        :param time:
+        :param value:
+        :param interval:
+        """
+        self.time = 0.0
+        self.value = value
+        self.interval = interval
+        self.name = name
+
+
+class RunRepeatIntervalTime:
+    """
+        相同数据，需要间隔指定时间才能运行
+    """
+
+    def __init__(self, info: IntervalInfo):
+        self.info = info
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def decorator(*args, **kwargs):
+            if self.info.name is None:
+                v = args[0]
+            else:
+                sig = signature(func)
+                bound_values = sig.bind(*args, **kwargs)
+
+                if self.info.name in bound_values.arguments:
+                    v = bound_values.arguments[self.info.name]
+                elif self.info.name in kwargs:
+                    v = kwargs[self.info.name]
+                else:
+                    raise ValueError("没有指定参数 缺失：{}".format(self.info.name))
+
+            if v == self.info.value:
+                now = time.time()
+                if now - self.info.time >= self.info.interval:
+                    self.info.time = now
+                    back = func(*args, **kwargs)
+                    return back
+            else:
+                now = time.time()
+                self.info.time = now
+                self.info.value = v
+                back = func(*args, **kwargs)
+                return back
+
+        return decorator
